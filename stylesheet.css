@@ -1,0 +1,38 @@
+.codexbar-green {
+  color: #73d216;
+}
+
+.codexbar-yellow {
+  color: #f5c211;
+}
+
+.codexbar-red {
+  color: #ef2929;
+}
+
+.codexbar-label {
+  font-weight: bold;
+}
+
+.codexbar-icon {
+  icon-size: 16px;
+}
+
+.codexbar-gray {
+  color: #d3d3d3;
+}
+
+.codexbar-header {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.codexbar-error {
+  color: #ef2929;
+  font-style: italic;
+}
+
+.codexbar-timestamp {
+  font-style: italic;
+  color: #999999;
+}

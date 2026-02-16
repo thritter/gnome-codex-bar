@@ -1,0 +1,9 @@
+{
+  "uuid": "codexbar@gnome-codex-bar",
+  "name": "CodexBar Usage Monitor",
+  "description": "Displays Codex and Claude usage limits in the top bar via the codexbar CLI tool",
+  "shell-version": ["46"],
+  "settings-schema": "org.gnome.shell.extensions.codexbar",
+  "version": 2,
+  "url": ""
+}

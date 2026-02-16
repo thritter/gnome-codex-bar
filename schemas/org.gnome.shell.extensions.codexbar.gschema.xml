@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="codexbar@gnome-codex-bar">
+  <schema id="org.gnome.shell.extensions.codexbar"
+          path="/org/gnome/shell/extensions/codexbar/">
+    <key name="codexbar-bin" type="s">
+      <default>'/usr/local/bin/codexbar'</default>
+      <summary>Path to codexbar binary</summary>
+      <description>Full path to the codexbar CLI executable</description>
+    </key>
+    <key name="poll-interval" type="i">
+      <default>300</default>
+      <summary>Poll interval in seconds</summary>
+      <description>How often to poll codexbar for usage data (30–3600 seconds)</description>
+      <range min="30" max="3600"/>
+    </key>
+    <key name="display-mode" type="s">
+      <default>'text'</default>
+      <summary>Display mode</summary>
+      <description>Panel display: 'text' for labels, 'icons' for SVG icons</description>
+    </key>
+  </schema>
+</schemalist>
