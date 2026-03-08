@@ -10,8 +10,23 @@
     <key name="poll-interval" type="i">
       <default>300</default>
       <summary>Poll interval in seconds</summary>
-      <description>How often to poll codexbar for usage data (30–3600 seconds)</description>
-      <range min="30" max="3600"/>
+      <description>How often to poll codexbar for usage data (300–3600 seconds)</description>
+      <range min="300" max="3600"/>
+    </key>
+    <key name="provider-codex-enabled" type="b">
+      <default>true</default>
+      <summary>Enable Codex provider</summary>
+      <description>Whether to poll and display Codex usage</description>
+    </key>
+    <key name="provider-claude-enabled" type="b">
+      <default>true</default>
+      <summary>Enable Claude provider</summary>
+      <description>Whether to poll and display Claude usage</description>
+    </key>
+    <key name="provider-gemini-enabled" type="b">
+      <default>true</default>
+      <summary>Enable Gemini provider</summary>
+      <description>Whether to poll and display Gemini usage</description>
     </key>
     <key name="display-mode" type="s">
       <default>'text'</default>

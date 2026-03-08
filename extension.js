@@ -10,9 +10,12 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+const MIN_POLL_SECONDS = 300; // 5 minutes
+
 const PROVIDERS = [
     {key: 'codex', label: 'CX', args: ['usage', '--provider', 'codex', '--source', 'cli', '--format', 'json']},
     {key: 'claude', label: 'CL', args: ['usage', '--provider', 'claude', '--source', 'oauth', '--format', 'json']},
+    {key: 'gemini', label: 'GO', args: ['usage', '--provider', 'gemini', '--source', 'api', '--format', 'json']},
 ];
 
 function getColorClass(percent) {
@@ -74,6 +77,7 @@ class CodexBarIndicator extends PanelMenu.Button {
         this._extensionPath = extensionPath;
         this._settings = settings;
         this._results = {};
+        this._lastRefreshTime = 0;
 
         // Container box for all panel widgets
         this._panelBox = new St.BoxLayout({
@@ -83,8 +87,12 @@ class CodexBarIndicator extends PanelMenu.Button {
         this.add_child(this._panelBox);
 
         // Text mode label
+        const defaultText = PROVIDERS
+            .filter(p => this._isProviderEnabled(p.key))
+            .map(p => `${p.label}:--`)
+            .join(' ') || '--';
         this._panelLabel = new St.Label({
-            text: 'CX:-- CL:--',
+            text: defaultText,
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'codexbar-label',
         });
@@ -117,7 +125,7 @@ class CodexBarIndicator extends PanelMenu.Button {
         this._buildMenu();
 
         // Initial fetch
-        this._refresh().catch(e => console.error('CodexBar: initial refresh failed:', e));
+        this._refresh({force: true}).catch(e => console.error('CodexBar: initial refresh failed:', e));
     }
 
     _buildMenu() {
@@ -163,9 +171,21 @@ class CodexBarIndicator extends PanelMenu.Button {
         this.menu.addMenuItem(refreshItem);
     }
 
-    async _refresh() {
+    _isProviderEnabled(key) {
+        return this._settings.get_boolean(`provider-${key}-enabled`);
+    }
+
+    async _refresh({force = false} = {}) {
+        const now = GLib.get_monotonic_time() / 1e6; // seconds
+        if (!force && now - this._lastRefreshTime < MIN_POLL_SECONDS) {
+            console.debug(`[CodexBar] Skipping refresh — cooldown (${Math.round(MIN_POLL_SECONDS - (now - this._lastRefreshTime))}s remaining)`);
+            return;
+        }
+        this._lastRefreshTime = now;
+
         const bin = this._settings.get_string('codexbar-bin');
-        const promises = PROVIDERS.map(async (provider) => {
+        const enabledProviders = PROVIDERS.filter(p => this._isProviderEnabled(p.key));
+        const promises = enabledProviders.map(async (provider) => {
             try {
                 const data = await runCommand(bin, provider.args);
                 this._results[provider.key] = data;
@@ -173,6 +193,12 @@ class CodexBarIndicator extends PanelMenu.Button {
                 this._results[provider.key] = {error: {message: e.message}};
             }
         });
+
+        // Clear results for disabled providers
+        for (const provider of PROVIDERS) {
+            if (!this._isProviderEnabled(provider.key))
+                delete this._results[provider.key];
+        }
 
         await Promise.all(promises);
         this._updateUI();
@@ -184,7 +210,7 @@ class CodexBarIndicator extends PanelMenu.Button {
 
         this._panelLabel.visible = !isIcons;
         for (const provider of PROVIDERS) {
-            this._providerIcons[provider.key].icon.visible = isIcons;
+            this._providerIcons[provider.key].icon.visible = isIcons && this._isProviderEnabled(provider.key);
         }
     }
 
@@ -192,12 +218,20 @@ class CodexBarIndicator extends PanelMenu.Button {
         const panelParts = [];
 
         for (const provider of PROVIDERS) {
+            const sec = this._providerSections[provider.key];
+            const enabled = this._isProviderEnabled(provider.key);
+
+            // Hide entire dropdown section for disabled providers
+            sec.section.actor.visible = enabled;
+
+            if (!enabled)
+                continue;
+
             const data = this._results[provider.key];
             if (!data) {
                 console.warn(`[CodexBar] : ${provider.key} NO Data`)
                 continue;
             }
-            const sec = this._providerSections[provider.key];
 
             if (data.error) {
                 sec.primary.label.text = '  Primary: --';
@@ -250,6 +284,7 @@ class CodexBarIndicator extends PanelMenu.Button {
         // Color the panel label based on max primary usage
         let maxPct = 0;
         for (const provider of PROVIDERS) {
+            if (!this._isProviderEnabled(provider.key)) continue;
             const data = this._results[provider.key];
             if (data?.usage?.primary?.usedPercent != null) {
                 maxPct = Math.max(maxPct, data.usage.primary.usedPercent);
@@ -259,9 +294,17 @@ class CodexBarIndicator extends PanelMenu.Button {
 
         // Update icon mode widgets per-provider (swap colored SVG)
         for (const provider of PROVIDERS) {
-            const data = this._results[provider.key];
             const {icon, gicons} = this._providerIcons[provider.key];
 
+            if (!this._isProviderEnabled(provider.key)) {
+                icon.visible = false;
+                continue;
+            }
+
+            const mode = this._settings.get_string('display-mode');
+            icon.visible = mode === 'icons';
+
+            const data = this._results[provider.key];
             if (!data || data.error) {
                 icon.gicon = gicons.gray;
                 continue;
@@ -300,12 +343,15 @@ export default class CodexBarExtension extends Extension {
                 this._indicator._refresh().catch(e => console.error('CodexBar: refresh failed:', e));
             } else if (key === 'display-mode') {
                 this._indicator._applyDisplayMode();
+            } else if (key.startsWith('provider-') && key.endsWith('-enabled')) {
+                this._indicator._applyDisplayMode();
+                this._indicator._refresh({force: true}).catch(e => console.error('CodexBar: refresh failed:', e));
             }
         });
     }
 
     _startTimer() {
-        const interval = this._settings.get_int('poll-interval');
+        const interval = Math.max(this._settings.get_int('poll-interval'), MIN_POLL_SECONDS);
         this._timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, interval, () => {
             this._indicator._refresh().catch(e => console.error('CodexBar: refresh failed:', e));
             return GLib.SOURCE_CONTINUE;

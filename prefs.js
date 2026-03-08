@@ -32,15 +32,15 @@ export default class CodexBarPreferences extends ExtensionPreferences {
 
         // Poll interval
         const adjustment = new Gtk.Adjustment({
-            lower: 30,
+            lower: 300,
             upper: 3600,
-            step_increment: 30,
-            page_increment: 60,
+            step_increment: 60,
+            page_increment: 300,
             value: settings.get_int('poll-interval'),
         });
         const pollRow = new Adw.SpinRow({
             title: 'Poll interval (seconds)',
-            subtitle: 'How often to check usage (30–3600)',
+            subtitle: 'How often to check usage (300–3600 seconds)',
             adjustment,
         });
         settings.bind('poll-interval', adjustment, 'value', Gio.SettingsBindFlags.DEFAULT);
@@ -67,5 +67,21 @@ export default class CodexBarPreferences extends ExtensionPreferences {
         });
 
         group.add(displayRow);
+
+        // Providers group
+        const providersGroup = new Adw.PreferencesGroup({
+            title: 'Providers',
+            description: 'Enable or disable individual providers',
+        });
+        page.add(providersGroup);
+
+        for (const [key, title] of [['codex', 'Codex'], ['claude', 'Claude'], ['gemini', 'Gemini']]) {
+            const row = new Adw.SwitchRow({
+                title,
+                subtitle: `Poll and display ${title} usage`,
+            });
+            settings.bind(`provider-${key}-enabled`, row, 'active', Gio.SettingsBindFlags.DEFAULT);
+            providersGroup.add(row);
+        }
     }
 }

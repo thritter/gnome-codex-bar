@@ -5,5 +5,5 @@
   "shell-version": ["46"],
   "settings-schema": "org.gnome.shell.extensions.codexbar",
   "version": 2,
-  "url": ""
+  "url": "https://github.com/thritter/gnome-codex-bar"
 }
