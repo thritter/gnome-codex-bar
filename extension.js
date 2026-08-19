@@ -222,7 +222,7 @@ class CodexBarIndicator extends PanelMenu.Button {
             const enabled = this._isProviderEnabled(provider.key);
 
             // Hide entire dropdown section for disabled providers
-            sec.section.actor.visible = enabled;
+            sec.section.visible = enabled;
 
             if (!enabled)
                 continue;
